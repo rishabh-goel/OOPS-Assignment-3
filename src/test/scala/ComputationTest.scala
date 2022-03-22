@@ -7,91 +7,80 @@ import scala.collection.mutable
 import scala.collection.mutable.{ListBuffer, Map, Set}
 
 class ComputationTest extends AnyFlatSpec with Matchers{
-
-  // create "MyClass" class
-  ClassDef("MyClass", Private(Field("f1")), Constructor(Assign("f1", Value(5))), Public(CreateMethod("m1", Params("a", "b"), Assign("c", Union(Variable("a"), Variable("b"))), Variable("c")))).eval()
-
-  // create "MyInner" class
-  ClassDef("MyInner", Public(Field("e1")), Constructor(Assign("e1", Value(100))), Private(CreateMethod("m1", Params("a", "b"), Assign("c", Intersect(Variable("a"), Variable("b"))), Variable("c")))).eval()
-
-  // "MyInner" is inner class of "MyClass"
-  InnerClass("MyClass", "MyInner").eval()
-
-  // Create object of MyClass with constructor value f1->50
-  NewObject("MyClass", Variable("obj1"), Params("f1"), ListBuffer(Value(50))).eval()
-
-  // Create object of MyClass with constructor value f1->15
-  NewObject("MyClass", Variable("obj2"), Params("f1"), ListBuffer(Value(15))).eval()
-
-  // Create object of MyInner with constructor value e1->0
-  NewObject("MyInner", Variable("innerObj1"), Params("e1"), ListBuffer(Value(0)), "obj1").eval()
-
-  // Create object of MyInner with constructor value e1->20
-  NewObject("MyInner", Variable("innerObj2"), Params("e1"), ListBuffer(Value(20)), "obj1").eval()
-
-  // create "DerivedClass" class
-  ClassDef("DerivedClass", Public(Field("d1")), Private(Field("d2", Value(2))), Protected(Field("d3", Value(5))), Protected(Field("d4")), Constructor(Assign("d1", Value(10)))).eval()
-
-  // DerivedClass extends attributes of MyClass
-  ClassDef("DerivedClass") Extends ClassDef("MyClass")
-
-  // Create object of MyInner with constructor value d1->20
-  NewObject("DerivedClass", Variable("derivedObj"), Params("d1"), ListBuffer(Value(20))).eval()
-
-  // Invoke method m1 of MyClass using obj1 to perform Union of 2 sets
-  Assign("result1", InvokeObject(Value("MyClass"), Value("obj1"), Value("m1"), Value(Set(1,2)), Value(Set(3,4)))).eval()
-
-  // Invoke method m1 of MyInner using innerObj1 to perform Intersection of 2 sets
-  Assign("result2", InvokeObject(Value("MyInner"), Value("innerObj1"), Value("m1"), Value(Set(1,2)), Value(Set(1,4)))).eval()
-
-  // Trying to catch exception thrown on creating MyInner object as outer class object(obj3) is not created
-  val caught = intercept[Exception] {
-    NewObject("MyInner", Variable("innerObj3"), Params("e1"), ListBuffer(Value(20)), "obj3").eval()
-  }
-
+  
   // Test 1
-  it should "check if outer and inner classes are created" in {
-    // check if Outer class has been created
-    scopeMap("MyClass") != null
-
-    // check if inner class has been created inside outer class
-    val innerClassMap = scopeMap("MyClass").asInstanceOf[Map[BasicType, BasicType]]("innerClass")
-    innerClassMap.asInstanceOf[Map[BasicType, BasicType]]("MyInner") != null
+  it should "invoke method inherited from abstract class" in {
+    AbstractClassDef("AbstractClass1", Private(Field("f1")), Public(CreateMethod("m1", Params("a", "b"))), Public(CreateMethod("m2", Params("a", "b"), Assign("c", Union(Variable("a"), Variable("b"))), Variable("c")))).eval()
+    ClassDef("MyClass1", Private(Field("f1")), Constructor(Assign("f1", Value(5))), Public(CreateMethod("m1", Params("a", "b"), Assign("c", Cross(Variable("a"), Variable("b"))), Variable("c")))).eval()
+    ClassDef("MyClass1") Extends AbstractClassDef("AbstractClass1")
+    NewObject("MyClass1", Variable("obj1"), Params("f1"), ListBuffer(Value(50))).eval()
+    Assign("result1", InvokeObject(Value("MyClass1"), Value("obj1"), Value("m2"), Value(Set(1,2)), Value(Set(3,4)))).eval()
+    assert(Variable("result1").eval() === mutable.HashSet(1, 2, 3, 4))
   }
 
   // Test 2
-  it should "check if we are able to implement class inheritance with required accesses" in {
+  it should "check that interfaces have no method body" in {
 
-    // check if public method of parent class is inherited or not
-    val derivedMethodMap = scopeMap("DerivedClass").asInstanceOf[Map[String, Any]]("method").asInstanceOf[Map[String, Any]]
-    assert(derivedMethodMap.contains("m1") === true)
+    val caught = intercept[Error] {
+      Interface("MyErrorInterface", Public(CreateMethod("m1", Params("a", "b"), Assign("c", Cross(Variable("a"), Variable("b"))), Variable("c")))).eval()
+    }
 
-    // check if private field of parent class is inherited or not
-    val derivedFieldMap = scopeMap("DerivedClass").asInstanceOf[Map[String, Any]]("field").asInstanceOf[Map[String, Any]]
-    assert(derivedFieldMap.contains("f1") === false)
+    assert(caught.getMessage === "Interface methods can't have body")
   }
 
   // Test 3
-  it should "check if we can create an object of class with constructor parameters passed" in {
+  it should "check that a class is able to implement interface methods" in {
 
-    // 2 different of objects of same class have different values of same field assigned through constructor
-    val fieldMap1 = attrMap("obj1").asInstanceOf[Map[BasicType, BasicType]]("field").asInstanceOf[Map[BasicType, BasicType]]
-    val fieldMap2 = attrMap("obj2").asInstanceOf[Map[BasicType, BasicType]]("field").asInstanceOf[Map[BasicType, BasicType]]
-    assert(fieldMap1("f1") === 50)
-    assert(fieldMap2("f1") === 15)
+    ClassDef("TestClass1", Private(Field("f1"))).eval()
+    Interface("MyInterface1", Public(CreateMethod("m4", Params("a")))).eval()
+    val caught_impl = intercept[Error] {
+      ClassDef("TestClass1") Implements Interface("MyInterface1")
+    }
+    assert(caught_impl.getMessage === "Class has to implement interface methods")
+
+    Interface("MyInterface", Public(CreateMethod("m4", Params("a")))).eval()
+    ClassDef("TestClass2", Private(Field("f1")), Public(CreateMethod("m4", Params("a", "b"), Assign("c", Cross(Variable("a"), Variable("b"))), Variable("c")))).eval()
+    val caught_param = intercept[Error] {
+      ClassDef("TestClass2") Implements Interface("MyInterface")
+    }
+    assert(caught_param.getMessage === "Cannot implement method from interface as method parameters don't match")
   }
 
   // Test 4
-  it should "check if we are able to invoke a method through an object" in {
+  it should "check the correct functionality of Implements and Extends feature" in {
+    // PnC between classes/abstract class and interface
+    AbstractClassDef("AbstractClass1", Private(Field("f1")), Public(CreateMethod("m1", Params("a", "b"))), Public(CreateMethod("m2", Params("a", "b"), Assign("c", Union(Variable("a"), Variable("b"))), Variable("c")))).eval()
+    ClassDef("MyClass1", Private(Field("f1")), Constructor(Assign("f1", Value(5))), Public(CreateMethod("m1", Params("a", "b"), Assign("c", Cross(Variable("a"), Variable("b"))), Variable("c")))).eval()
+    Interface("MyInterface", Public(CreateMethod("m4", Params("a", "b")))).eval()
 
-    // evalue the result of invoking a method using object of respective classes
-    assert(Variable("result1").eval() === mutable.HashSet(1, 2, 3, 4))
-    assert(Variable("result2").eval() === mutable.HashSet(1))
+    val caught_impl1 = intercept[Error] {
+      ClassDef("MyClass1") Implements AbstractClassDef("AbstractClass1")
+    }
+
+    val caught_impl2 = intercept[Error] {
+      Interface("MyInterface") Implements ClassDef("MyClass1")
+    }
+
+    val caught_impl3 = intercept[Error] {
+      ClassDef("MyClass1") Implements ClassDef("MyClass1")
+    }
+
+    assert(caught_impl1.getMessage === "A class can't be implemented. It can only be extended")
+    assert(caught_impl2.getMessage === "Only a class/abstract_class can implement an interface")
+    assert(caught_impl3.getMessage === "A class can't be implemented. It can only be extended")
   }
 
   // Test 5
-  it should "check that an exception is thrown" in {
-    //inner class object should be created only after outer class object has been created
-    assert(caught.getMessage === "Outer class object doesn't exist")
+  it should "check that multiple inheritance isn't allowed" in {
+
+    Interface("MyInterface1", Public(CreateMethod("m4", Params("a", "b")))).eval()
+    Interface("MyInterface2", Public(CreateMethod("m1", Params("a", "b", "c")))).eval()
+    Interface("MyInterface3", Public(CreateMethod("m2", Params("a", "b")))).eval()
+
+    Interface("MyInterface1") Extends Interface("MyInterface2")
+    val caught_extd = intercept[Error] {
+      Interface("MyInterface1") Extends Interface("MyInterface3")
+    }
+    assert(caught_extd.getMessage === "Cannot support multiple inheritance")
   }
 }
