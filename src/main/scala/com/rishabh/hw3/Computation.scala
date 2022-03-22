@@ -66,11 +66,12 @@ object Computation:
     case Private(param: SetExp) // Create Private access modifier
     case Protected(param: SetExp) // Create Protected access modifier
     case Params(parameters: String*) // Stores formal parameters for Constructors and Methods
-    case AbstractClassDef(className: String, expr: SetExp*)
-    case Interface(interfaceName: String, expr: SetExp*)
-    case InnerInterface(outerInterface: String, innerInterface: String)
+    case AbstractClassDef(className: String, expr: SetExp*) // Create Abstract class
+    case Interface(interfaceName: String, expr: SetExp*) // Create Interface
+    case InnerInterface(outerInterface: String, innerInterface: String) // Create Inner Interface
 
 
+    // Method to find the name of the class/abstract class/interface
     def findName(name: mutable.Map[BasicType, BasicType]) = {
       val objName = scopeMap.find(_._2 == name).map(_._1) match {
         case Some(m) => m.asInstanceOf[String]
@@ -80,6 +81,17 @@ object Computation:
       objName
     }
 
+    // Method to update the access specifier map for public/protected/private accesses
+    def getNewModifiers(modifier: String, parentName: String, childName: String) = {
+      // Get specified access members of parent and child references and create a new map for child reference
+      val modifierParentMap = accessMap(modifier).asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](parentName).asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]]
+      val modifierChildMap = accessMap(modifier).asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](childName).asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]]
+      val newModifierChildMap = modifierChildMap.++(modifierParentMap)
+
+      newModifierChildMap
+    }
+
+    // Method to add functionality of an interface to the class/abstract class
     def Implements(interface: SetExp) = {
       // Get elements of interface
       val parent = interface.eval().asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]].clone()
@@ -87,21 +99,11 @@ object Computation:
       // Get elements of class
       val child = this.eval().asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]].clone()
 
-      // Get name of child class
-//      val childName = scopeMap.find(_._2 == child).map(_._1) match {
-//        case Some(m) => m.asInstanceOf[String]
-//        case None => throw new Error("Class not found")
-//      }
-
+      // Get parent and child name
       val childName = findName(child)
-
       val parentName = findName(parent)
-//      // Get name of interface
-//      val parentName = scopeMap.find(_._2 == parent).map(_._1) match {
-//        case Some(m) => m.asInstanceOf[String]
-//        case None => throw new Error("Parent interface not found")
-//      }
 
+      // Identify the type of child reference that will be implementing the parent
       val childType = dataStructureList.find(_._2.asInstanceOf[scala.collection.mutable.ListBuffer[BasicType]].contains(childName)).map(_._1) match {
         case Some(m) => {
           m.asInstanceOf[String] match {
@@ -114,6 +116,7 @@ object Computation:
         case None => throw new Error("Invalid type")
       }
 
+      // Identify the type of parent reference being used
       val parentType = dataStructureList.find(_._2.asInstanceOf[scala.collection.mutable.ListBuffer[BasicType]].contains(parentName)).map(_._1) match {
         case Some(m) => {
           m.asInstanceOf[String] match {
@@ -125,14 +128,17 @@ object Computation:
         case None => throw new Error("Invalid type")
       }
 
+      // Identify the methods present in both parent and child
       val parentKeys = parent("method").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]].keySet
       val childKeys = child("method").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]].keySet
       val commonKeys = parentKeys.intersect(childKeys)
 
+      // If interface has more methods than class, then it should result in error as class has to implement all interface methods
       if(childType.equals("class") && parentType.equals("interface") && parentKeys.size > childKeys.size) {
         throw new Error("Class has to implement interface methods")
       }
 
+      // Check if the parameter list for each method is same. If not, then throw an error
       commonKeys.foreach(key => {
         val parentMethod = parent("method").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](key).asInstanceOf[scala.collection.mutable.ListBuffer[SetExp]]
         val childMethod = child("method").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](key).asInstanceOf[scala.collection.mutable.ListBuffer[SetExp]]
@@ -144,10 +150,7 @@ object Computation:
 
       val methodMap = parent("method").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]].clone().++(child("method").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]]).clone()
 
-      // Get public access members of parent and child class and create a new map for child class
-      val publicParentMap = accessMap("public").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](parentName).asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]]
-      val publicChildMap = accessMap("public").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](childName).asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]]
-      val newpublicChildMap = publicChildMap.++(publicParentMap)
+      val newpublicChildMap = getNewModifiers("public", parentName, childName)
 
       // Update the access modifiers for child class after inheriting from the parent class
       accessMap.update("public", accessMap("public").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]] += (childName -> newpublicChildMap))
@@ -169,17 +172,9 @@ object Computation:
       // Get elements of child class
       val child = this.eval().asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]].clone()
 
-      // Get name of child class
-      val childName = scopeMap.find(_._2 == child).map(_._1) match {
-        case Some(m) => m.asInstanceOf[String]
-        case None => throw new Error("Child class not found")
-      }
-
-      // Get name of parent class
-      val parentName = scopeMap.find(_._2 == parent).map(_._1) match {
-        case Some(m) => m.asInstanceOf[String]
-        case None => throw new Error("Parent class not found")
-      }
+      // Get parent and child name
+      val childName = findName(child)
+      val parentName = findName(parent)
 
       // Check if child and parent class are same
       if(parentName == childName)
@@ -193,9 +188,7 @@ object Computation:
         // Get private access members of parent class
         val privateMembers = accessMap("private").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](parentName)
 
-        // Create new Constructor, Field and Method maps by first merging members of parent and child class
-        // Then removing private members from fields and methods as they are not inherited
-
+        // Identify the type of child reference that will be extending the parent
         val childType = dataStructureList.find(_._2.asInstanceOf[scala.collection.mutable.ListBuffer[BasicType]].contains(childName)).map(_._1) match {
           case Some(m) => {
             m.asInstanceOf[String] match {
@@ -207,6 +200,7 @@ object Computation:
           case None => throw new Error("Invalid type")
         }
 
+        // Identify the type of parent reference that will be extended
         val parentType = dataStructureList.find(_._2.asInstanceOf[scala.collection.mutable.ListBuffer[BasicType]].contains(parentName)).map(_._1) match {
           case Some(m) => {
             m.asInstanceOf[String] match {
@@ -218,7 +212,10 @@ object Computation:
           case None => throw new Error("Invalid type")
         }
 
+
         if(!parentType.equals("interface")){
+          // Create new Constructor, Field and Method maps by first merging members of parent and child class
+          // Then removing private members from fields and methods as they are not inherited
           val constructorMap = child.get("constructor") match {
             case Some(m) => parent("constructor").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]].++(m.asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]].asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]])
             case None => parent("constructor").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]]
@@ -245,12 +242,12 @@ object Computation:
           val childKeys = child("method").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]].keySet
           val commonKeys = parentKeys.intersect(childKeys)
 
-
-
-          if(commonKeys.size == 0 && childType.equals("class")) {
+          // Concrete class need to implement abstract method of abstract class
+          if(commonKeys.size == 0 && childType.equals("class") && parentType.equals("abstract_class")) {
             throw new Error("Abstract class method not implemented")
           }
 
+          // Check if the parameter list for each method is same. If not, then throw an error
           commonKeys.foreach(key => {
             val parentMethod = parent("method").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](key).asInstanceOf[scala.collection.mutable.ListBuffer[SetExp]]
             val childMethod = child("method").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](key).asInstanceOf[scala.collection.mutable.ListBuffer[SetExp]]
@@ -260,15 +257,10 @@ object Computation:
             }
           })
 
-          // Get public access members of parent and child class and create a new map for child class
-          val publicParentMap = accessMap("public").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](parentName).asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]]
-          val publicChildMap = accessMap("public").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](childName).asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]]
-          val newpublicChildMap = publicChildMap.++(publicParentMap)
+          // Get updated maps for the child
+          val newpublicChildMap = getNewModifiers("public", parentName, childName)
+          val newprotectedChildMap = getNewModifiers("protected", parentName, childName)
 
-          // Get protected access members of parent and child class and create a new map for child class
-          val protectedParentMap = accessMap("protected").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](parentName).asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]]
-          val protectedChildMap = accessMap("protected").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](childName).asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]]
-          val newprotectedChildMap = protectedChildMap.++(protectedParentMap)
 
           // Update the access modifiers for child class after inheriting from the parent class
           accessMap.update("public", accessMap("public").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]] += (childName -> newpublicChildMap))
@@ -282,6 +274,9 @@ object Computation:
           scopeMap += (childName -> map)
         }
         else {
+
+          // Create new Method map by first merging members of parent and child interface
+          // Then removing private methods as they are not inherited
           val parentMethodMap = parent("method").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]].clone()
           privateMembers.asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]].keySet.foreach(i => {
             parentMethodMap -= i
@@ -297,6 +292,7 @@ object Computation:
             throw new Error("Abstract class method not implemented")
           }
 
+          // Check if the parameter list for each method is same. If not, then throw an error
           commonKeys.foreach(key => {
             val parentMethod = parent("method").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](key).asInstanceOf[scala.collection.mutable.ListBuffer[SetExp]]
             val childMethod = child("method").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](key).asInstanceOf[scala.collection.mutable.ListBuffer[SetExp]]
@@ -306,21 +302,15 @@ object Computation:
             }
           })
 
-          // Get public access members of parent and child class and create a new map for child class
-          val publicParentMap = accessMap("public").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](parentName).asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]]
-          val publicChildMap = accessMap("public").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](childName).asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]]
-          val newpublicChildMap = publicChildMap.++(publicParentMap)
+          // Get updated maps for the child
+          val newpublicChildMap = getNewModifiers("public", parentName, childName)
+          val newprotectedChildMap = getNewModifiers("protected", parentName, childName)
 
-          // Get protected access members of parent and child class and create a new map for child class
-          val protectedParentMap = accessMap("protected").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](parentName).asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]]
-          val protectedChildMap = accessMap("protected").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](childName).asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]]
-          val newprotectedChildMap = protectedChildMap.++(protectedParentMap)
-
-          // Update the access modifiers for child class after inheriting from the parent class
+          // Update the access modifiers for child interface after inheriting from the parent interface
           accessMap.update("public", accessMap("public").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]] += (childName -> newpublicChildMap))
           accessMap.update("protected", accessMap("protected").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]] += (childName -> newprotectedChildMap))
 
-          // keep track of which class inherits which class to avoid multiple inheritance
+          // keep track of which interface inherits which interface to avoid multiple inheritance
           inheritanceMap += (childName -> parentName)
 
           // Map with updated values to be put again to the scopeMap
@@ -332,7 +322,82 @@ object Computation:
 
     // Method where the execution of our program begins
     def eval(scope: scala.collection.mutable.Map[BasicType, BasicType] = scopeMap, access: scala.collection.mutable.Map[BasicType, BasicType]*): BasicType =
+
+      // Helper method to create Inner Class/Inner Interface
+      def createInnerRefHelper(innerRefName: String, outerRefName: String, innerRefType: String, currentScope: mutable.Map[BasicType, BasicType]) = {
+
+        // Get elements of inner and outer reference from the current scope
+        val inner = currentScope(innerRefName).asInstanceOf[scala.collection.mutable.Map[String, Any]]
+        val outer = currentScope(outerRefName).asInstanceOf[scala.collection.mutable.Map[String, Any]]
+
+        // Allow only 1 nested item to get created
+        if(nestedClassMap.contains(outer))
+          throw new Error("Cannot create multiple nested items")
+
+        // Update the map of outer item to include details of inner item
+        outer += (innerRefType -> scala.collection.mutable.Map(innerRefName -> inner))
+        nestedClassMap += (outerRefName -> innerRefName)
+
+        // Remove the inner item from current scope as it has been moved to inside outer item
+        currentScope.remove(innerRefName)
+      }
+
+      // Helper method to create  Class/Abstract Class/Inner Interface
+      def createRefHelper(itemName: String, itemType: String, currentScope: mutable.Map[BasicType, BasicType], expr: SetExp*) = {
+        // If class is already created, return the elements of the item
+        if (currentScope.contains(itemName))
+          currentScope(itemName)
+        else {
+
+          // Create map to store fields, methods and constructors for a class
+          val map: scala.collection.mutable.Map[BasicType, BasicType] = scala.collection.mutable.Map()
+
+          // Add field and constructor keys to the map only if we are not creating the interface
+          if(!itemType.equals("interface")) {
+            val fieldMap: scala.collection.mutable.Map[String, Any] = scala.collection.mutable.Map()
+            val constructorMap: scala.collection.mutable.Map[BasicType, BasicType] = scala.collection.mutable.Map()
+            map += ("field" -> fieldMap)
+            map += ("constructor" -> constructorMap)
+          }
+
+          val methodMap: scala.collection.mutable.Map[String, ListBuffer[SetExp]] = scala.collection.mutable.Map()
+          map += ("method" -> methodMap)
+
+          // Create access modifier maps
+          val publicClassMap: scala.collection.mutable.Map[BasicType, BasicType] = scala.collection.mutable.Map(itemName -> scala.collection.mutable.Map())
+          val privateClassMap: scala.collection.mutable.Map[BasicType, BasicType] = scala.collection.mutable.Map(itemName -> scala.collection.mutable.Map())
+          val protectedClassMap: scala.collection.mutable.Map[BasicType, BasicType] = scala.collection.mutable.Map(itemName -> scala.collection.mutable.Map())
+
+          // Evaluate each expression inside class def with the appropriate scope
+          expr.foreach(i => {
+            i.eval(map, publicClassMap, privateClassMap, protectedClassMap)
+          })
+
+          // Check if the methods of the interface have body or not
+          if(itemType.equals("interface")) {
+            val interfaceMethods: scala.collection.mutable.Map[BasicType, BasicType] = map("method").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]]
+            interfaceMethods.foreach(method => {
+              val methodBody = method._2.asInstanceOf[scala.collection.mutable.ListBuffer[SetExp]]
+              if (methodBody.size > 1)
+                throw new Error("Interface methods can't have body")
+            })
+          }
+
+          // Update the maps with access modifiers and class definition
+          currentScope += (itemName -> map)
+          dataStructureList.update(itemType, dataStructureList(itemType).asInstanceOf[scala.collection.mutable.ListBuffer[BasicType]] += itemName)
+          accessMap.update("public", accessMap("public").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]] += (publicClassMap.head._1 -> publicClassMap.head._2))
+          accessMap.update("private", accessMap("private").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]] += (privateClassMap.head._1 -> privateClassMap.head._2))
+          accessMap.update("protected", accessMap("protected").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]] += (protectedClassMap.head._1 -> protectedClassMap.head._2))
+          currentScope(itemName)
+        }
+      }
+
       this match {
+
+        case Params(params*) =>
+          // Return the list of formal parameters for Methods and Constructors
+          params
 
         case Value(i) => i
 
@@ -340,7 +405,7 @@ object Computation:
           if(scope.contains(name))
             scope(name)
           else
-            Value(name).eval()
+            Value(name).eval(scope)
 
 
         case Check(set, item) =>
@@ -422,58 +487,6 @@ object Computation:
           // Perform operations in the current scope
           op.eval(currentScope)
 
-
-        case InnerClass(outerClass, innerClass) =>
-          // Get elements of inner and outer class from the current scope
-          val inner = scope(innerClass).asInstanceOf[scala.collection.mutable.Map[String, Any]]
-          val outer = scope(outerClass).asInstanceOf[scala.collection.mutable.Map[String, Any]]
-
-          // Allow only 1 nested class to get created
-          if(nestedClassMap.contains(outer))
-            throw new Error("Cannot create multiple nested classes")
-
-          // Update the map of outer class to include details of inner class
-          outer += ("innerInterface" -> scala.collection.mutable.Map(innerClass -> inner))
-          nestedClassMap += (outerClass -> innerClass)
-
-          // Remove the inner class from current scope as it has been moved to inside outer class
-          scope.remove(innerClass)
-
-
-        case ClassDef(className, expr*) =>
-
-          // Create map to store fields, methods and constructors for a class
-          val fieldMap: scala.collection.mutable.Map[String, Any] = scala.collection.mutable.Map()
-          val constructorMap: scala.collection.mutable.Map[BasicType, BasicType] = scala.collection.mutable.Map()
-          val methodMap: scala.collection.mutable.Map[String, ListBuffer[SetExp]] = scala.collection.mutable.Map()
-
-          // If class is already created, return the elements of the class
-          if(scope.contains(className))
-            scope(className)
-          else {
-
-            // Create a map that will be used to store all elements of the class
-            val map: scala.collection.mutable.Map[BasicType, BasicType] = scala.collection.mutable.Map("field" -> fieldMap, "constructor" -> constructorMap, "method" -> methodMap)
-
-            // Create access modifier maps
-            val publicClassMap: scala.collection.mutable.Map[BasicType, BasicType] = scala.collection.mutable.Map(className -> scala.collection.mutable.Map())
-            val privateClassMap: scala.collection.mutable.Map[BasicType, BasicType] = scala.collection.mutable.Map(className -> scala.collection.mutable.Map())
-            val protectedClassMap: scala.collection.mutable.Map[BasicType, BasicType] = scala.collection.mutable.Map(className -> scala.collection.mutable.Map())
-
-            // Evaluate each expression inside class def with the appropriate scope
-            expr.foreach(i => {
-              i.eval(map, publicClassMap, privateClassMap, protectedClassMap)
-            })
-
-            // Update the maps with access modifiers and class definition
-            scope += (className -> map)
-            dataStructureList.update("class", dataStructureList("class").asInstanceOf[scala.collection.mutable.ListBuffer[BasicType]] += className)
-            accessMap.update("public", accessMap("public").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]] += (publicClassMap.head._1 -> publicClassMap.head._2))
-            accessMap.update("private", accessMap("private").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]] += (privateClassMap.head._1 -> privateClassMap.head._2))
-            accessMap.update("protected", accessMap("protected").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]] += (protectedClassMap.head._1 -> protectedClassMap.head._2))
-            scope(className)
-          }
-
         case Field(name, expr*) =>
           val fieldMap = scope("field").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]]
 
@@ -495,11 +508,6 @@ object Computation:
           else {
             throw new Error("Cannot create constructor of abstract class")
           }
-
-
-        case Params(params*) =>
-          // Return the list of formal parameters for Methods and Constructors
-          params
 
 
         case CreateMethod(methodName, params, expr*) =>
@@ -575,16 +583,16 @@ object Computation:
               if(parentObj.isEmpty) {
                 // Get the list of objects for the current class
                 val list: ListBuffer[Any] = objectMap(className).asInstanceOf[ListBuffer[Any]]
-                list += expr.eval()
+                list += expr.eval(scope)
 
                 // Update the objectMap to include the current object to the class list
                 objectMap += (className -> list)
                 // Update the attrMap to include the current object and the list of elements it can access
-                attrMap += (expr.eval() -> scope(className).asInstanceOf[scala.collection.mutable.Map[String, Any]].clone())
+                attrMap += (expr.eval(scope) -> scope(className).asInstanceOf[scala.collection.mutable.Map[String, Any]].clone())
 
                 // If we have an inner class, the object should not access that. Hence, we remove the innerInterface entry from the map
                 val objectAttr = attrMap(expr.eval(scope)).asInstanceOf[scala.collection.mutable.Map[String, Any]]
-                objectAttr -= "innerInterface"
+                objectAttr -= "innerClass"
                 attrMap += (expr.eval(scope) -> objectAttr)
               }
               else {
@@ -592,7 +600,7 @@ object Computation:
                 // Check if the object's class is an inner class or not
                 if(nestedClassMap.exists(_._2.asInstanceOf[String] == className)){
                   val list: ListBuffer[Any] = objectMap(className).asInstanceOf[ListBuffer[Any]]
-                  list += expr.eval()
+                  list += expr.eval(scope)
                   objectMap += (className -> list)
 
                   // Get the name of the outer class
@@ -608,7 +616,7 @@ object Computation:
                   if(outerClassObjects.contains(parentObj.head)) {
                     val outerClassAttr = scope(outerClassName).asInstanceOf[scala.collection.mutable.Map[String, Any]]
                     // Associate the members of the inner class with the current object
-                    attrMap += (expr.eval() -> outerClassAttr("innerInterface").asInstanceOf[mutable.Map[String, Any]](className))
+                    attrMap += (expr.eval(scope) -> outerClassAttr("innerClass").asInstanceOf[mutable.Map[String, Any]](className))
                   }
                   else {
                     // Throw an exception because outer class object doesn't exist
@@ -653,7 +661,7 @@ object Computation:
 
                 // If we have an inner class, the object should not access that. Hence, we remove the innerInterface entry from the map
                 val objectAttr = attrMap(expr.eval(scope)).asInstanceOf[scala.collection.mutable.Map[String, Any]]
-                objectAttr -= "innerInterface"
+                objectAttr -= "innerClass"
                 attrMap += (expr.eval(scope) -> objectAttr)
               }
               else {
@@ -673,11 +681,11 @@ object Computation:
                   // Check if the parent object exists or not
                   if(outerClassObjects.contains(parentObj.head)) {
                     val list: ListBuffer[Any] = ListBuffer()
-                    list += expr.eval()
+                    list += expr.eval(scope)
                     objectMap += (className -> list)
                     val outerClassAttr = scope(outerClassName).asInstanceOf[scala.collection.mutable.Map[String, Any]]
                     // Associate the members of the inner class with the current object
-                    attrMap += (expr.eval() -> outerClassAttr("innerInterface").asInstanceOf[mutable.Map[String, Any]](className))
+                    attrMap += (expr.eval(scope) -> outerClassAttr("innerClass").asInstanceOf[mutable.Map[String, Any]](className))
                   }
                   else {
                     // Throw an exception because outer class object doesn't exist
@@ -764,137 +772,30 @@ object Computation:
           protectedMap.update(protectedMap.head._1, protectedMap(protectedMap.head._1).asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]] += (result.head._1 -> result.head._2))
 
 
+        case ClassDef(className, expr*) =>
+          // Create a class using helper method
+          createRefHelper(className, "class", scope, expr*)
+
         case AbstractClassDef(className, expr*) =>
-          // Create map to store fields, methods and constructors for a class
-          val fieldMap: scala.collection.mutable.Map[String, Any] = scala.collection.mutable.Map()
-          val constructorMap: scala.collection.mutable.Map[BasicType, BasicType] = scala.collection.mutable.Map()
-          val methodMap: scala.collection.mutable.Map[String, ListBuffer[SetExp]] = scala.collection.mutable.Map()
-
-          // If class is already created, return the elements of the class
-          if(scope.contains(className))
-            scope(className)
-          else {
-
-            // Create a map that will be used to store all elements of the class
-            val map: scala.collection.mutable.Map[BasicType, BasicType] = scala.collection.mutable.Map("field" -> fieldMap, "constructor" -> constructorMap, "method" -> methodMap)
-
-            // Create access modifier maps
-            val publicClassMap: scala.collection.mutable.Map[BasicType, BasicType] = scala.collection.mutable.Map(className -> scala.collection.mutable.Map())
-            val privateClassMap: scala.collection.mutable.Map[BasicType, BasicType] = scala.collection.mutable.Map(className -> scala.collection.mutable.Map())
-            val protectedClassMap: scala.collection.mutable.Map[BasicType, BasicType] = scala.collection.mutable.Map(className -> scala.collection.mutable.Map())
-
-            // Evaluate each expression inside class def with the appropriate scope
-            expr.foreach(i => {
-              i.eval(map, publicClassMap, privateClassMap, protectedClassMap)
-            })
-
-            // Update the maps with access modifiers and class definition
-            scope += (className -> map)
-            dataStructureList.update("abstract_class", dataStructureList("abstract_class").asInstanceOf[scala.collection.mutable.ListBuffer[BasicType]] += className)
-            accessMap.update("public", accessMap("public").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]] += (publicClassMap.head._1 -> publicClassMap.head._2))
-            accessMap.update("private", accessMap("private").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]] += (privateClassMap.head._1 -> privateClassMap.head._2))
-            accessMap.update("protected", accessMap("protected").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]] += (protectedClassMap.head._1 -> protectedClassMap.head._2))
-            scope(className)
-          }
-
+          // Create an abstract class using helper method
+          createRefHelper(className, "abstract_class", scope, expr*)
 
         case Interface(interfaceName, expr*) =>
-          // Create map methods for an interface
-          val methodMap: scala.collection.mutable.Map[String, ListBuffer[SetExp]] = scala.collection.mutable.Map()
+          // Create an interface using helper method
+          createRefHelper(interfaceName, "interface", scope, expr*)
 
-          // If class is already created, return the elements of the class
-          if(scope.contains(interfaceName))
-            scope(interfaceName)
-          else {
-
-            // Create a map that will be used to store all elements of the class
-            val map: scala.collection.mutable.Map[BasicType, BasicType] = scala.collection.mutable.Map("method" -> methodMap)
-
-            // Create access modifier maps
-            val publicInterfaceMap: scala.collection.mutable.Map[BasicType, BasicType] = scala.collection.mutable.Map(interfaceName -> scala.collection.mutable.Map())
-            val privateInterfaceMap: scala.collection.mutable.Map[BasicType, BasicType] = scala.collection.mutable.Map(interfaceName -> scala.collection.mutable.Map())
-            val protectedInterfaceMap: scala.collection.mutable.Map[BasicType, BasicType] = scala.collection.mutable.Map(interfaceName -> scala.collection.mutable.Map())
-
-            // Evaluate each expression inside class def with the appropriate scope
-            expr.foreach(i => {
-              i.eval(map, publicInterfaceMap, privateInterfaceMap, protectedInterfaceMap)
-            })
-
-
-            val interfaceMethods: scala.collection.mutable.Map[BasicType, BasicType] = map("method").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]]
-
-
-            interfaceMethods.foreach(method => {
-              val methodBody = method._2.asInstanceOf[scala.collection.mutable.ListBuffer[SetExp]]
-
-              if(methodBody.size > 1)
-                throw new Error("Interface methods can't have body")
-            })
-
-            // Update the maps with access modifiers and class definition
-            scope += (interfaceName -> map)
-            dataStructureList.update("interface", dataStructureList("interface").asInstanceOf[scala.collection.mutable.ListBuffer[BasicType]] += interfaceName)
-            accessMap.update("public", accessMap("public").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]] += (publicInterfaceMap.head._1 -> publicInterfaceMap.head._2))
-            accessMap.update("private", accessMap("private").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]] += (privateInterfaceMap.head._1 -> privateInterfaceMap.head._2))
-            accessMap.update("protected", accessMap("protected").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]] += (protectedInterfaceMap.head._1 -> protectedInterfaceMap.head._2))
-            scope(interfaceName)
-          }
+        case InnerClass(outerClass, innerClass) =>
+          // Create an inner class using helper method
+          createInnerRefHelper(innerClass, outerClass, "innerClass", scope)
 
         case InnerInterface(outerInterface, innerInterface) =>
-          // Get elements of inner and outer class from the current scope
-          val inner = scope(innerInterface).asInstanceOf[scala.collection.mutable.Map[String, Any]]
-          val outer = scope(outerInterface).asInstanceOf[scala.collection.mutable.Map[String, Any]]
-
-          // Allow only 1 nested class to get created
-          if(nestedClassMap.contains(outer))
-            throw new Error("Cannot create multiple nested interfaces")
-
-          // Update the map of outer class to include details of inner class
-          outer += ("innerInterface" -> scala.collection.mutable.Map(innerInterface -> inner))
-          nestedClassMap += (outerInterface -> innerInterface)
-
-          // Remove the inner class from current scope as it has been moved to inside outer class
-          scope.remove(innerInterface)
+          // Create an inner interface using helper method
+          createInnerRefHelper(innerInterface, outerInterface, "innerInterface", scope)
       }
 
-  /*
-  Ques -> Can a class/interface inherit from itself?
-  Ans  -> No. An error will be thrown if the class/interface tries to inherit itself
-
-  Ques -> Can an interface inherit from an abstract class with all pure methods?
-  Ans  -> Yes
-
-  Ques -> Can an interface implement another interface?
-  Ans  -> Error will be thrown "Only a class/abstract_class can implement an interface"
-
-  Ques -> Can a class implement two or more different interfaces that declare methods with exactly the same signatures?
-  Ans  -> Yes but the interface that is extended later, its method will be survived. If C1 implements I1 first and I2 second, then methods of I2 will survive
-
-  Ques -> Can an abstract class inherit from another abstract class and implement interfaces where all interfaces and the abstract class have methods with the same signatures?
-
-  Ques -> Can an abstract class implement interfaces?
-  Ans  -> Yes
-
-  Ques -> Can a class implement two or more interfaces that have methods whose signatures differ only in return types?
-  Ans  -> In my implementation, return type doesn't matter. Whichever will be the last interface, it method will be survived
-
-  Ques -> Can an abstract class inherit from a concrete class?
-  Ans  -> Yes
-
-  */
   @main def runArithExp: Unit =
     import SetExp.*
 
-    AbstractClassDef("AbstractClass1", Public(Field("f1")), Public(CreateMethod("m1", Params("a", "b")))).eval()
-    AbstractClassDef("AbstractClass2", Private(Field("f2")), Public(CreateMethod("m1", Params("a", "b"), Assign("c", Union(Variable("a"), Variable("b"))), Variable("c")))).eval()
-
-    AbstractClassDef("AbstractClass2") Extends AbstractClassDef("AbstractClass1")
-    println(AbstractClassDef("AbstractClass2").eval())
-
-    Interface("MyErrorInterface", Public(CreateMethod("m1", Params("a", "b")))).eval()
-
-    AbstractClassDef("AbstractClass2") Implements Interface("MyErrorInterface")
-    println(AbstractClassDef("AbstractClass2").eval())
 
 
 
