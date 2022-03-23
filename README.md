@@ -159,10 +159,10 @@ Import the following dependencies into your code:
 10. Make sure both class are created before you make one class as inner of another
 11. Make sure both class are created before you inherit members of one class in another
 12. `Extends` and `Implements` are the only functions that doesn't use `.eval()`
-13. A class/interface cannot inherit itself
-14. An interface inherit from an abstract class with all pure methods
-15. An interface implement another interface
+13. A class/interface cannot extend itself
+14. An interface can inherit from an abstract class with all pure methods
+15. An interface cannot implement another interface
 16. A class cannot implement two or more different interfaces that declare methods with different signatures
-17. An abstract class inherit from another abstract class and implement interfaces where all interfaces and the abstract class have methods with the same signatures
+17. An abstract class can inherit from another abstract class and implement interfaces where all interfaces and the abstract class have methods with the same signatures
 18. An abstract class can implement interfaces
-19. An abstract class inherit from a concrete class
+19. An abstract class can inherit from a concrete class

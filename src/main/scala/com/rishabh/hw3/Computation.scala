@@ -72,7 +72,7 @@ object Computation:
 
 
     // Method to find the name of the class/abstract class/interface
-    def findName(name: mutable.Map[BasicType, BasicType]) = {
+    def findName(name: mutable.Map[BasicType, BasicType]): String = {
       val objName = scopeMap.find(_._2 == name).map(_._1) match {
         case Some(m) => m.asInstanceOf[String]
         case None => throw new Error("Item could not be found")
@@ -82,7 +82,7 @@ object Computation:
     }
 
     // Method to update the access specifier map for public/protected/private accesses
-    def getNewModifiers(modifier: String, parentName: String, childName: String) = {
+    def getNewModifiers(modifier: String, parentName: String, childName: String): mutable.Map[BasicType, BasicType] = {
       // Get specified access members of parent and child references and create a new map for child reference
       val modifierParentMap = accessMap(modifier).asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](parentName).asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]]
       val modifierChildMap = accessMap(modifier).asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](childName).asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]]
@@ -105,25 +105,24 @@ object Computation:
 
       // Identify the type of child reference that will be implementing the parent
       val childType = dataStructureList.find(_._2.asInstanceOf[scala.collection.mutable.ListBuffer[BasicType]].contains(childName)).map(_._1) match {
-        case Some(m) => {
+        case Some(m) =>
           m.asInstanceOf[String] match {
             case "class" => "class"
             case "abstract_class" => "abstract_class"
             case "interface" => throw new Error("Only a class/abstract_class can implement an interface")
           }
-        }
+
 
         case None => throw new Error("Invalid type")
       }
 
       // Identify the type of parent reference being used
       val parentType = dataStructureList.find(_._2.asInstanceOf[scala.collection.mutable.ListBuffer[BasicType]].contains(parentName)).map(_._1) match {
-        case Some(m) => {
+        case Some(m) =>
           m.asInstanceOf[String] match {
             case "interface" => "interface"
             case _ => throw new Error("A class can't be implemented. It can only be extended")
           }
-        }
 
         case None => throw new Error("Invalid type")
       }
@@ -143,7 +142,7 @@ object Computation:
         val parentMethod = parent("method").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](key).asInstanceOf[scala.collection.mutable.ListBuffer[SetExp]]
         val childMethod = child("method").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](key).asInstanceOf[scala.collection.mutable.ListBuffer[SetExp]]
 
-        if(parentMethod(0) != childMethod(0)) {
+        if(parentMethod.head != childMethod.head) {
           throw new Error("Cannot implement method from interface as method parameters don't match")
         }
       })
@@ -190,25 +189,25 @@ object Computation:
 
         // Identify the type of child reference that will be extending the parent
         val childType = dataStructureList.find(_._2.asInstanceOf[scala.collection.mutable.ListBuffer[BasicType]].contains(childName)).map(_._1) match {
-          case Some(m) => {
+          case Some(m) =>
             m.asInstanceOf[String] match {
               case "class" => "class"
               case "abstract_class" => "abstract_class"
               case "interface" => "interface"
             }
-          }
+
           case None => throw new Error("Invalid type")
         }
 
         // Identify the type of parent reference that will be extended
         val parentType = dataStructureList.find(_._2.asInstanceOf[scala.collection.mutable.ListBuffer[BasicType]].contains(parentName)).map(_._1) match {
-          case Some(m) => {
+          case Some(m) =>
             m.asInstanceOf[String] match {
               case "class" => "class"
               case "abstract_class" => "abstract_class"
               case "interface" => "interface"
             }
-          }
+
           case None => throw new Error("Invalid type")
         }
 
@@ -217,7 +216,7 @@ object Computation:
           // Create new Constructor, Field and Method maps by first merging members of parent and child class
           // Then removing private members from fields and methods as they are not inherited
           val constructorMap = child.get("constructor") match {
-            case Some(m) => parent("constructor").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]].++(m.asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]].asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]])
+            case Some(m) => parent("constructor").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]].++(m.asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]])
             case None => parent("constructor").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]]
           }
 
@@ -227,7 +226,7 @@ object Computation:
           })
 
           val fieldMap = child.get("field") match {
-            case Some(m) => parentFieldMap.++(m.asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]].asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]])
+            case Some(m) => parentFieldMap.++(m.asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]])
             case None => parentFieldMap
           }
 
@@ -243,7 +242,7 @@ object Computation:
           val commonKeys = parentKeys.intersect(childKeys)
 
           // Concrete class need to implement abstract method of abstract class
-          if(commonKeys.size == 0 && childType.equals("class") && parentType.equals("abstract_class")) {
+          if(commonKeys.isEmpty && childType.equals("class") && parentType.equals("abstract_class")) {
             throw new Error("Abstract class method not implemented")
           }
 
@@ -252,7 +251,7 @@ object Computation:
             val parentMethod = parent("method").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](key).asInstanceOf[scala.collection.mutable.ListBuffer[SetExp]]
             val childMethod = child("method").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](key).asInstanceOf[scala.collection.mutable.ListBuffer[SetExp]]
 
-            if(parentMethod(0) != childMethod(0)) {
+            if(parentMethod.head != childMethod.head) {
               throw new Error("Cannot override method as paramter list doesn't match")
             }
           })
@@ -288,7 +287,7 @@ object Computation:
           val childKeys = child("method").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]].keySet
           val commonKeys = parentKeys.intersect(childKeys)
 
-          if(commonKeys.size == 0 && childType.equals("class")) {
+          if(commonKeys.isEmpty && childType.equals("class")) {
             throw new Error("Abstract class method not implemented")
           }
 
@@ -297,7 +296,7 @@ object Computation:
             val parentMethod = parent("method").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](key).asInstanceOf[scala.collection.mutable.ListBuffer[SetExp]]
             val childMethod = child("method").asInstanceOf[scala.collection.mutable.Map[BasicType, BasicType]](key).asInstanceOf[scala.collection.mutable.ListBuffer[SetExp]]
 
-            if(parentMethod(0) != childMethod(0)) {
+            if(parentMethod.head != childMethod.head) {
               throw new Error("Cannot override method as paramter list doesn't match")
             }
           })
