@@ -20,17 +20,18 @@ Operations included:
 | `SetMacro("delete", Delete(Variable("A"), Value(1))).eval()` | Initialize a Macro | Assignment 1 |
 | `GetMacro("delete").eval()` | Fetch a Macro by name | Assignment 1 |
 | `Scope(Union(Variable("A"), Variable("B"))).eval()` | Compute result in default scope | Assignment 1 |
-| `ClassDef("className", Private(Field("f1")), Constructor(Assign("f1", Value(5))), Public(CreateMethod("m1", Params("a", "b"), Assign("c", Union(Variable("a"), Variable("b"))), Variable("c")))).eval()` | Class definition with fields, constructors and methods | Assignment 2 |
+| `ClassDef("itemName", Private(Field("f1")), Constructor(Assign("f1", Value(5))), Public(CreateMethod("m1", Params("a", "b"), Assign("c", Union(Variable("a"), Variable("b"))), Variable("c")))).eval()` | Class definition with fields, constructors and methods | Assignment 2 |
 | `Public(Field("f")).eval(), Private(Field("g")).eval(), Protected(Field("h")).eval()` | Access modifiers for fields(Similarly for methods) | Assignment 2 |
 | `InnerClass("outerClassName", "innerClassName").eval()` | Creates an inner class(innerClassName) inside the outer class(outerClassName) | Assignment 2 |
-| `NewObject("className", Variable("objName"), Params("fieldName"), ListBuffer(Value(50))).eval()` |  Creates an object(objName) for class(className) and assigns 50 to fieldName through a constructor| Assignment 2 |
+| `NewObject("itemName", Variable("objName"), Params("fieldName"), ListBuffer(Value(50))).eval()` |  Creates an object(objName) for class(itemName) and assigns 50 to fieldName through a constructor| Assignment 2 |
 | `NewObject("innerInterface", Variable("innerObj"), Params("innerField"), ListBuffer(Value(0)), "objName").eval()` | Creates an object(innerObj) for inner class(innerInterface) and assigns 0 to innerField through a constructor. Done only if parent class object(objName) already created | Assignment 2 |
 | `ClassDef("DerivedClass") Extends ClassDef("ParentClass")` | DerivedClass inherits members of ParentClass | Assignment 2 |
-| `InvokeObject(Value("className"), Value("objName"), Value("methodName"), Value(Set(1,2)), Value(Set(3,4))).eval()` | Invokes the method(methodName) of class(className) using an object(objName) | Assignment 2 |
-| `InvokeObject(Value("className"), Value("objName"), Value("fieldName"))` | Fetches the value of field(fieldName) of class(className) using an object(objName) | Assignment 2 |
-
-
-
+| `InvokeObject(Value("itemName"), Value("objName"), Value("methodName"), Value(Set(1,2)), Value(Set(3,4))).eval()` | Invokes the method(methodName) of class(itemName) using an object(objName) | Assignment 2 |
+| `InvokeObject(Value("itemName"), Value("objName"), Value("fieldName"))` | Fetches the value of field(fieldName) of class(itemName) using an object(objName) | Assignment 2 |
+| `
+` | Creates an abstract class with concrete method and abstract method | Assignment 3 |
+| `Interface("MyInterface", Public(CreateMethod("m4", Params("a", "b")))).eval()` | Creates an interface with just method definition | Assignment 3 |
+| `ClassDef("TestClass2") Implements Interface("MyInterface")` | Concrete class implements methods of an interface | Assignment 3 |
 
 
 ## <u>Instructions to Execute</u>
@@ -49,8 +50,8 @@ Operations included:
 #### Using IntelliJ
 
 Import the following dependencies into your code:
-   1. `import com.rishabh.hw2.Computation.*`
-   2. `import com.rishabh.hw2.Computation.SetExp.*`
+   1. `import com.rishabh.hw3.Computation.*`
+   2. `import com.rishabh.hw3.Computation.SetExp.*`
    3. `import scala.collection.mutable.*`
 
 
@@ -123,6 +124,27 @@ Import the following dependencies into your code:
 5. Invoke Object enum uses obj1 of class MyClass to invoke method m1 with inputs Set(1,2) and Set(3,4) to the method and computes their Union and returns the result
 
 ---
+
+![](project/code_structure_img7.png)
+
+1. Name of the abstract class
+2. Abstract Class contains abstract method `m1`
+3. Abstract class contains concrete method `m2` that performs union of 2 sets
+4. Method `m1` is created with Public access modifier
+5. Method `m2` is created with Public access modifier
+6. AbstractClassDef is executed using the eval method 
+
+---
+
+![](project/code_structure_img8.png)
+
+1. Name of the interface
+2. Create a method `m4` which just has the method declaration
+3. Method `m4` has Public access modifier
+4. Interface is executed using the eval method
+
+---
+
 ## <u>Points to remember</u>
 
 1. Inner class object cannot access Outer class object
@@ -136,7 +158,7 @@ Import the following dependencies into your code:
 9. Only 1 inner class can be created
 10. Make sure both class are created before you make one class as inner of another
 11. Make sure both class are created before you inherit members of one class in another
-12. `Extends` is the only function that doesn't use `.eval()`
+12. `Extends` and `Implements` are the only functions that doesn't use `.eval()`
 13. A class/interface cannot inherit itself
 14. An interface inherit from an abstract class with all pure methods
 15. An interface implement another interface
