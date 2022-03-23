@@ -28,8 +28,7 @@ Operations included:
 | `ClassDef("DerivedClass") Extends ClassDef("ParentClass")` | DerivedClass inherits members of ParentClass | Assignment 2 |
 | `InvokeObject(Value("itemName"), Value("objName"), Value("methodName"), Value(Set(1,2)), Value(Set(3,4))).eval()` | Invokes the method(methodName) of class(itemName) using an object(objName) | Assignment 2 |
 | `InvokeObject(Value("itemName"), Value("objName"), Value("fieldName"))` | Fetches the value of field(fieldName) of class(itemName) using an object(objName) | Assignment 2 |
-| `
-` | Creates an abstract class with concrete method and abstract method | Assignment 3 |
+| `AbstractClassDef("AbstractClass1", Private(Field("f1")), Public(CreateMethod("m1", Params("a", "b"))), Public(CreateMethod("m2", Params("a", "b"), Assign("c", Union(Variable("a"), Variable("b"))), Variable("c")))).eval()` | Creates an abstract class with concrete method and abstract method | Assignment 3 |
 | `Interface("MyInterface", Public(CreateMethod("m4", Params("a", "b")))).eval()` | Creates an interface with just method definition | Assignment 3 |
 | `ClassDef("TestClass2") Implements Interface("MyInterface")` | Concrete class implements methods of an interface | Assignment 3 |
 
