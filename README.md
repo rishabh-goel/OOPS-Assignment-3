@@ -162,7 +162,7 @@ Import the following dependencies into your code:
 13. A class/interface cannot inherit itself
 14. An interface inherit from an abstract class with all pure methods
 15. An interface implement another interface
-16. A class implement two or more different interfaces that declare methods but the interface that is extended later, its method will be survived
+16. A class cannot implement two or more different interfaces that declare methods with different signatures
 17. An abstract class inherit from another abstract class and implement interfaces where all interfaces and the abstract class have methods with the same signatures
 18. An abstract class can implement interfaces
 19. An abstract class inherit from a concrete class
